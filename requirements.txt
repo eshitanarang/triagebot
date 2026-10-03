@@ -1,0 +1,7 @@
+gradio
+slack-bolt~=1.0
+groq
+pydantic
+python-dotenv
+pandas
+tenacity
