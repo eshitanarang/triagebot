@@ -141,3 +141,70 @@ def model_quality(db_path: str):
     )
     by_reason = _count(reasons, "review reason") if len(reasons) else pd.DataFrame({"review reason": [], "tickets": []})
     return kpis, matrix, bars(by_reason)
+
+
+# ---------------------------------------------------------------------------
+# Offline evaluation results (read from the eval_summary_*.json files)
+# ---------------------------------------------------------------------------
+def _load_eval_runs(folder: str) -> list[dict]:
+    import json
+    import re
+    from pathlib import Path
+
+    runs = []
+    for path in Path(folder).glob("eval_summary_*.json"):
+        s = json.loads(path.read_text())
+        m = re.search(r"eval_summary_(v\d+)_seed(\d+)", path.name)
+        s.setdefault("prompt_version", m.group(1) if m else "?")
+        s.setdefault("seed", int(m.group(2)) if m else None)
+        s["_mtime"] = path.stat().st_mtime
+        runs.append(s)
+    return sorted(runs, key=lambda s: s["_mtime"])
+
+
+def evaluation(folder: str = "."):
+    runs = _load_eval_runs(folder)
+    if not runs:
+        empty = pd.DataFrame({"note": ["No evaluation yet. Run: python evaluate.py"]})
+        return tiles([("Evaluation runs", "0", "run evaluate.py")]), empty, empty, empty
+
+    first, latest = runs[0], runs[-1]
+    kpis = tiles([
+        ("Category accuracy, latest", f"{latest['category_accuracy']:.1%}",
+         f"prompt {latest['prompt_version']}, {latest['tickets']} fresh tickets"),
+        ("Baseline", f"{first['category_accuracy']:.1%}", f"prompt {first['prompt_version']}, before definitions"),
+        ("Errors caught by review", latest["errors_caught_by_review"], "latest run"),
+        ("Latency p50 / p95", f"{latest['latency_p50_s']} / {latest['latency_p95_s']} s", f"{latest['model']}"),
+    ])
+
+    table = pd.DataFrame([{
+        "prompt": r["prompt_version"], "seed": r["seed"], "model": r["model"], "tickets": r["tickets"],
+        "accuracy": f"{r['category_accuracy']:.1%}", "sent to review": f"{r['review_rate']:.0%}",
+        "errors caught by review": r["errors_caught_by_review"], "failed calls": r["failed_calls"],
+    } for r in runs])
+
+    # Per-category recall: one column per run, so before/after sits side by side
+    recall = pd.DataFrame({
+        f"{r['prompt_version']} (seed {r['seed']})": {c: v["recall"] for c, v in r["per_category_recall"].items()}
+        for r in runs
+    })
+    recall = recall.sort_values(recall.columns[-1]).rename_axis("category").reset_index()
+    pct_cols = list(recall.columns[1:])
+
+    def shade(v):
+        if not isinstance(v, (int, float)):
+            return ""
+        if v >= 0.999:
+            return "background-color: rgba(34,160,90,0.18)"
+        if v < 0.8:
+            return "background-color: rgba(230,150,30,0.25); font-weight: 600"
+        return ""
+
+    recall_styled = recall.style.format({c: "{:.0%}" for c in pct_cols}).map(shade, subset=pct_cols)
+
+    mistakes = pd.DataFrame(latest.get("top_confusions") or [])
+    if mistakes.empty:
+        mistakes = pd.DataFrame({"note": ["No mistakes in the latest run."]})
+    else:
+        mistakes.columns = ["true category", "predicted", "count"]
+    return kpis, table, recall_styled, mistakes

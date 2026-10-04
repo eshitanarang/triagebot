@@ -12,11 +12,12 @@ from datetime import datetime, timezone
 import gradio as gr
 import pandas as pd
 
-from dashboard import analytics, model_quality
+from dashboard import analytics, evaluation, model_quality
 from incidents import INCIDENT_WINDOW_MINUTES, check_incident, embed, init_incidents, sync_incident_priority
 from triage_engine import CATEGORY_LIST, triage
 
 DB_PATH = "triagebot.db"
+EVAL_DIR = "."  # where evaluate.py saves eval_summary_*.json
 
 COLUMNS = [
     "ticket_id", "created_at", "source", "redacted_text", "category", "priority",
@@ -188,12 +189,22 @@ with gr.Blocks(title="TriageBot") as demo:
                     "Green cells are agreement; amber cells are corrections.")
         q_matrix = gr.Dataframe(interactive=False)
         q_reasons = gr.BarPlot(x="review reason", y="tickets", title="Why tickets were sent to review", sort="-y", height=260)
-        q_outputs = [q_kpis, q_matrix, q_reasons]
-        q_refresh.click(lambda: model_quality(DB_PATH), outputs=q_outputs, api_name=False)
+
+        gr.Markdown("---\n## Offline evaluation\nBitext customer-support dataset, category accuracy only "
+                    "(the dataset has no priority or sentiment labels). Each run uses tickets the earlier runs never saw. "
+                    "Re-run with `python evaluate.py`.")
+        e_kpis = gr.HTML()
+        e_runs = gr.Dataframe(interactive=False, label="Evaluation runs")
+        gr.Markdown("**Recall by category.** Green = 100%; amber = below 80%.")
+        e_recall = gr.Dataframe(interactive=False)
+        e_mistakes = gr.Dataframe(interactive=False, label="Most common mistakes, latest run")
+        q_outputs = [q_kpis, q_matrix, q_reasons, e_kpis, e_runs, e_recall, e_mistakes]
+        quality_view = lambda: (*model_quality(DB_PATH), *evaluation(EVAL_DIR))
+        q_refresh.click(quality_view, outputs=q_outputs, api_name=False)
 
     # Fill the dashboards when the page opens
     demo.load(lambda: analytics(DB_PATH), outputs=a_outputs, api_name=False)
-    demo.load(lambda: model_quality(DB_PATH), outputs=q_outputs, api_name=False)
+    demo.load(quality_view, outputs=q_outputs, api_name=False)
 
     # API-only endpoint (no UI): the Slack review buttons call this
     gr.api(record_feedback, api_name="feedback")
