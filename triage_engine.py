@@ -209,7 +209,7 @@ def triage(ticket_text: str) -> dict:
     # overconfident), so we also use signals the model cannot inflate.
     reasons = []
     if rule:
-        reasons.append("model under-rated priority; safety rule raised it")
+        reasons.append("model under-rated priority (safety rule raised it)")
     if result.category == "other":
         reasons.append("no matching category")
     if result.confidence < CONFIDENCE_THRESHOLD:

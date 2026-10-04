@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import gradio as gr
 import pandas as pd
 
+from dashboard import analytics, model_quality
 from incidents import INCIDENT_WINDOW_MINUTES, check_incident, embed, init_incidents, sync_incident_priority
 from triage_engine import CATEGORY_LIST, triage
 
@@ -165,6 +166,34 @@ with gr.Blocks(title="TriageBot") as demo:
         refresh_btn = gr.Button("Refresh")
         queue_table = gr.Dataframe(value=load_tickets, interactive=False, wrap=True)
         refresh_btn.click(load_tickets, outputs=queue_table, api_name=False)
+
+    with gr.Tab("Analytics"):
+        a_refresh = gr.Button("Refresh")
+        a_kpis = gr.HTML()
+        with gr.Row():
+            a_category = gr.BarPlot(x="category", y="tickets", title="Tickets by category", sort="-y", height=280)
+            a_priority = gr.BarPlot(x="priority", y="tickets", title="Priority mix", height=280)
+        with gr.Row():
+            a_sentiment = gr.BarPlot(x="sentiment", y="tickets", title="Sentiment", height=280)
+            a_confidence = gr.BarPlot(x="confidence", y="tickets", title="Model confidence (self-reported)", height=280)
+        gr.Markdown("### Incidents")
+        a_incidents = gr.Dataframe(interactive=False, wrap=True)
+        a_outputs = [a_kpis, a_category, a_priority, a_sentiment, a_confidence, a_incidents]
+        a_refresh.click(lambda: analytics(DB_PATH), outputs=a_outputs, api_name=False)
+
+    with gr.Tab("Model quality"):
+        q_refresh = gr.Button("Refresh")
+        q_kpis = gr.HTML()
+        gr.Markdown("### AI priority vs. human decision\nRows are what TriageBot said; columns are what the reviewer chose. "
+                    "Green cells are agreement; amber cells are corrections.")
+        q_matrix = gr.Dataframe(interactive=False)
+        q_reasons = gr.BarPlot(x="review reason", y="tickets", title="Why tickets were sent to review", sort="-y", height=260)
+        q_outputs = [q_kpis, q_matrix, q_reasons]
+        q_refresh.click(lambda: model_quality(DB_PATH), outputs=q_outputs, api_name=False)
+
+    # Fill the dashboards when the page opens
+    demo.load(lambda: analytics(DB_PATH), outputs=a_outputs, api_name=False)
+    demo.load(lambda: model_quality(DB_PATH), outputs=q_outputs, api_name=False)
 
     # API-only endpoint (no UI): the Slack review buttons call this
     gr.api(record_feedback, api_name="feedback")
