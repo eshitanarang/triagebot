@@ -1,0 +1,83 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "tickets": 55,
+  "failed_calls": 0,
+  "category_accuracy": 0.964,
+  "per_category_recall": {
+    "account": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "cancel": {
+      "recall": 0.8,
+      "tickets": 5
+    },
+    "contact": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "delivery": {
+      "recall": 0.8,
+      "tickets": 5
+    },
+    "feedback": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "invoice": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "order": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "payment": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "refund": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "shipping": {
+      "recall": 1.0,
+      "tickets": 5
+    },
+    "subscription": {
+      "recall": 1.0,
+      "tickets": 5
+    }
+  },
+  "review_rate": 0.0,
+  "accuracy_when_flagged": null,
+  "accuracy_when_not_flagged": 0.964,
+  "errors_caught_by_review": "0 of 2",
+  "calibration": {
+    "0.8-0.9": {
+      "accuracy": 1.0,
+      "tickets": 1
+    },
+    "0.9-1.0": {
+      "accuracy": 0.96,
+      "tickets": 54
+    }
+  },
+  "latency_p50_s": 0.84,
+  "latency_p95_s": 1.77,
+  "top_confusions": [
+    {
+      "true_category": "cancel",
+      "predicted_category": "payment",
+      "count": 1
+    },
+    {
+      "true_category": "delivery",
+      "predicted_category": "shipping",
+      "count": 1
+    }
+  ],
+  "prompt_version": "v2",
+  "seed": 7,
+  "excluded_from": "eval_results_v1_seed42.csv"
+}

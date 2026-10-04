@@ -7,3 +7,4 @@ pandas
 tenacity
 numpy
 sentence-transformers
+datasets
